@@ -81,4 +81,11 @@
 ## 注意点
 - すべてのテストが正常に通過
 - パフォーマンスも良好（1.27秒での完了）
-- デバッグログが適切に実装され、問題の特定が容易に 
+- デバッグログが適切に実装され、問題の特定が容易に
+
+Test Result Summary
+===================
+
+- Total tests collected: 7
+- Total tests passed: 7
+- Execution time: 0.50s 

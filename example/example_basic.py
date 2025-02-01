@@ -94,7 +94,7 @@ def main():
             orders.amount as order_amount
         FROM users
         JOIN orders ON users.id = orders.user_id
-        ORDER BY order_amount DESC
+        ORDER BY amount DESC
     """)
     results = cursor.fetchall()
     print("User orders:")
@@ -114,6 +114,31 @@ def main():
     print("IT department members:")
     for row in results:
         print(row)
+
+    # --- Lazy-loading Example ---
+    # This example demonstrates the lazy-loading functionality where CSV files are loaded automatically
+    # if the connection is initialized without initial DataFrames.
+    print("\n=== Example 5: Lazy-loading ===")
+    # Set base_dir to the directory containing the CSV files (assuming they are placed in the same directory as this example file)
+    base_dir = os.path.dirname(__file__)
+    print("base_dir:", base_dir)
+
+    csv_files = [
+        os.path.join(base_dir, 'users.csv'),
+        os.path.join(base_dir, 'orders.csv')
+    ]
+    print('file1:',os.path.exists(csv_files[0]))
+    print('file2:',os.path.exists(csv_files[1]))
+    # Create connection without providing initial dataframes to trigger lazy-loading
+    conn_lazy = pica.connect(base_dir=base_dir)
+    try:
+        cursor = conn_lazy.cursor()
+        cursor.execute("SELECT * FROM users")
+        results = cursor.fetchall()
+        print("Lazy-loaded users data:")
+        print(results)
+    except Exception as e:
+        print("Error during lazy-loading:", e)
 
 if __name__ == "__main__":
     main() 

@@ -15,6 +15,7 @@ from datetime import date, datetime
 import re
 import numpy as np
 import datetime
+import os
 
 # Linux x86_64環境でのみfireducksをインポート
 # Import fireducks only on Linux x86_64 environment
@@ -242,21 +243,34 @@ class Cursor:
         """
         tokens = [t for t in parsed.tokens if not t.is_whitespace]
         
-        # Get selected columns and their aliases
-        select_clause = self._parse_select_clause(tokens)
-        
-        # Set description for selected columns using aliases
-        self._description = [(alias, None, None, None, None, None, True) for _, alias in select_clause]
-        
         # Get base table and its alias
         table_name = self._get_table_name(tokens, "FROM")
         table_alias = self._get_table_alias(tokens, "FROM")
-
         if table_name not in self.connection.tables:
-            raise ValueError(f"Table {table_name} not found")
+             # Attempt lazy-loading: load CSV file if base_dir is provided
+             if hasattr(self.connection, 'base_dir'):
+                 csv_file = os.path.join(self.connection.base_dir, f"{table_name}.csv")
+                 if os.path.exists(csv_file):
+                     try:
+                         df_temp = pd.read_csv(csv_file)
+                         self.connection.tables[table_name] = df_temp
+                     except Exception as e:
+                         raise DatabaseError(f"Lazy loading failed for {table_name}: {e}")
+                 else:
+                     print("DEBUG: Lazy loading: CSV file not found:", csv_file)
+                     raise ValueError(f"Table {table_name} not found and CSV file {csv_file} is missing")
+             else:
+                 print("DEBUG: _select table_name:", table_name)
+                 print("DEBUG: _select connection.tables:", self.connection.tables)
+                 raise ValueError(f"Table {table_name} not found")
 
+        # Now that the table is loaded, copy the dataframe
         df = self.connection.tables[table_name].copy()
 
+        # Get selected columns and their aliases
+        select_clause = self._parse_select_clause(tokens)
+        self._description = [(alias, None, None, None, None, None, True) for _, alias in select_clause]
+        
         # テーブルエイリアスを保存
         table_aliases = {}
         if table_alias:
@@ -397,6 +411,8 @@ class Cursor:
                 # 全カラムに対してタプルを生成
                 select_tokens = [(col, col) for col in df.columns]
             else:
+                print("DEBUG: _parse_select_clause table_name:", table_name)
+                print("DEBUG: _parse_select_clause connection.tables:", self.connection.tables)
                 raise ValueError(f"Table {table_name} not found")
 
         return select_tokens

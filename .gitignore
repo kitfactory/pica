@@ -56,3 +56,6 @@ htmlcov/
 *.log
 
 # Test output
+
+# cursorrules should be ignored / cursorrulesファイルを無視する
+.cursorrules
