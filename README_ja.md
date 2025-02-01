@@ -23,8 +23,6 @@ import os
 import sys
 import pandas as pd
 
-# 上位ディレクトリをシステムパスに追加してpicaをインポート
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pica
 
 def main():
