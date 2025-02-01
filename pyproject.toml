@@ -3,11 +3,10 @@ requires = ["setuptools>=42", "wheel", "build"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pica"
+name = "pica-dbapi"
 version = "0.1.0"
 description = "A lightweight and fun DBAPI built on pandas/csv 🎉. Supported SQL: SELECT, INSERT, UPDATE, DELETE, JOIN, GROUP BY."
 readme = "README.md"
-readme-content-type = "text/markdown"
 authors = [
     { name = "Naruhide KITADANaruhide", email = "kitfactory@gmail.com" }
 ]
@@ -23,6 +22,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
+
 
 [project.urls]
 Homepage = "https://github.com/kitfactory/pica"

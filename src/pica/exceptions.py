@@ -34,8 +34,23 @@ class ProgrammingError(DatabaseError):
     """
     pass
 
+class IntegrityError(DatabaseError):
+    """
+    Exception raised for errors in database integrity.
+    データベースの整合性エラーの際に発生する例外
+    """
+    pass
+
+class InternalError(DatabaseError):
+    """
+    Exception raised for internal database errors.
+    内部データベースエラーの際に発生する例外
+    """
+    pass
+
 class NotSupportedError(DatabaseError):
-    """Exception raised for unsupported operations
-    サポートされていない操作の例外
+    """
+    Exception raised for operations that are not supported.
+    サポートされていない操作の際に発生する例外
     """
     pass 

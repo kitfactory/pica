@@ -4,7 +4,10 @@ from .exceptions import (
     DatabaseError,
     DataError,
     OperationalError,
-    ProgrammingError
+    ProgrammingError,
+    IntegrityError,
+    InternalError,
+    NotSupportedError
 )
 from .connection import Connection
 from .cursor import Cursor
@@ -38,5 +41,8 @@ __all__ = [
     'DatabaseError',
     'DataError',
     'OperationalError',
-    'ProgrammingError'
+    'ProgrammingError',
+    'IntegrityError',
+    'InternalError',
+    'NotSupportedError'
 ]

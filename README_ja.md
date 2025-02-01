@@ -13,7 +13,7 @@ Picaは、Python DB-API 2.0仕様に準拠したPandas DataFrame用の軽量なP
 ## 🛠️ インストール
 
 ```bash
-pip install pica
+pip install pica-dbapi
 ```
 
 ## 🎯 クイックスタート

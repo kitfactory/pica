@@ -4,77 +4,7 @@ import datetime
 import platform
 from typing import Optional, Dict, Any, Union
 from .cursor import Cursor
-from .exceptions import (
-    Error,
-    InterfaceError,
-    DatabaseError,
-    DataError,
-    OperationalError,
-    ProgrammingError
-)
-
-# Linux x86_64環境でのみfireducksをインポート
-HAS_FIREDUCKS = False
-if platform.system() == 'Linux' and platform.machine() == 'x86_64':
-    try:
-        import fireducks as fd
-        HAS_FIREDUCKS = True
-    except ImportError:
-        HAS_FIREDUCKS = False
-
-class Warning(Exception):
-    """Exception for important warnings
-    重要な警告に関する例外クラス
-    """
-    pass
-
-class InterfaceError(Error):
-    """Exception for errors related to database interface
-    データベースインターフェースに関連するエラー
-    """
-    pass
-
-class DatabaseError(Error):
-    """Exception for errors related to database operations
-    データベース操作に関連するエラー
-    """
-    pass
-
-class DataError(DatabaseError):
-    """Exception for errors related to data processing
-    データ処理に関連するエラー
-    """
-    pass
-
-class OperationalError(DatabaseError):
-    """Exception for errors related to database operations
-    データベース操作に関連するエラー
-    """
-    pass
-
-class IntegrityError(DatabaseError):
-    """Exception for errors related to relational integrity
-    リレーショナルの整合性に関連するエラー
-    """
-    pass
-
-class InternalError(DatabaseError):
-    """Exception for internal database errors
-    データベース内部のエラー
-    """
-    pass
-
-class ProgrammingError(DatabaseError):
-    """Exception for programming errors
-    プログラミングエラー
-    """
-    pass
-
-class NotSupportedError(DatabaseError):
-    """Exception for unsupported operations
-    サポートされていない操作
-    """
-    pass
+from .exceptions import InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError, InternalError, ProgrammingError, NotSupportedError
 
 class Connection:
     """

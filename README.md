@@ -13,7 +13,7 @@ Pica is a lightweight Python library that provides a SQL interface for Pandas Da
 ## 🛠️ Installation
 
 ```bash
-pip install pica
+pip install pica-dbapi
 ```
 
 ## 🎯 Quick Start
