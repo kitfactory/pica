@@ -257,11 +257,8 @@ class Cursor:
                      except Exception as e:
                          raise DatabaseError(f"Lazy loading failed for {table_name}: {e}")
                  else:
-                     print("DEBUG: Lazy loading: CSV file not found:", csv_file)
                      raise ValueError(f"Table {table_name} not found and CSV file {csv_file} is missing")
              else:
-                 print("DEBUG: _select table_name:", table_name)
-                 print("DEBUG: _select connection.tables:", self.connection.tables)
                  raise ValueError(f"Table {table_name} not found")
 
         # Now that the table is loaded, copy the dataframe
@@ -325,9 +322,7 @@ class Cursor:
                         right_col = col
                         break
             
-            print("DEBUG: left_col =", left_col, "right_col =", right_col)
             df_merged = pd.merge(df, right_df, left_on=left_col, right_on=right_col)
-            print("DEBUG: After merge, df columns:", df_merged.columns.tolist())
             df = df_merged
 
         # WHERE句の処理
