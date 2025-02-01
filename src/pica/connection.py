@@ -266,3 +266,39 @@ class Connection:
         """
         self._tables.clear()
 
+    def get_table(self, table_name: str) -> pd.DataFrame:
+        """
+        Retrieve a table DataFrame by name. If not registered, attempt to load from a CSV file in the base directory.
+        登録されていないテーブル名の場合、基準ディレクトリから CSV ファイルを読み込み登録する。
+
+        Args:
+            table_name (str): The name of the table.
+
+        Returns:
+            pd.DataFrame: The DataFrame associated with the table.
+
+        Raises:
+            FileNotFoundError: If the CSV file is not found in the base directory.
+            DataError: If reading the CSV file fails.
+        """
+        print("DEBUG: Entering get_table with table_name =", table_name)
+        if table_name in self._tables:
+            print("DEBUG: Table found in registered tables.")
+            return self._tables[table_name]
+
+        import os
+        file_path = os.path.join(self.base_dir, f"{table_name}.csv")
+        if not os.path.exists(file_path):
+            print("DEBUG: CSV file does not exist for table", table_name)
+            raise FileNotFoundError(f"CSV file for table {table_name} not found at {file_path}")
+
+        try:
+            df = pd.read_csv(file_path)
+            self._tables[table_name] = df
+            print("DEBUG: CSV file loaded and table registered for", table_name)
+            return df
+        except Exception as e:
+            print("DEBUG: Failed to read CSV file for table", table_name, "Error:", e)
+            from .exceptions import DataError
+            raise DataError(f"Failed to load CSV file for table {table_name}: {e}")
+
