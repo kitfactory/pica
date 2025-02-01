@@ -77,64 +77,42 @@ class NotSupportedError(DatabaseError):
     pass
 
 class Connection:
-    """Database connection supporting Pandas + CSV + fireducks automatic conversion
-    Pandas + CSV + fireducks の自動変換をサポートするデータベース接続
-
-    Args:
-        csv_file (str, optional): Path to CSV file
-                                CSVファイルへのパス
-        dataframe (pd.DataFrame, optional): Pandas DataFrame
-                                          PandasのDataFrame
-        use_fireducks (bool): Whether to use fireducks for high-speed operations
-                            高速操作のためにfireducksを使用するかどうか
-
-    Raises:
-        InterfaceError: When neither csv_file nor dataframe is provided
-                       CSVファイルもDataFrameも提供されていない場合
-        OperationalError: When file operation fails
-                        ファイル操作に失敗した場合
     """
-
-    def __init__(self, csv_file: Optional[str] = None, dataframe: Optional[pd.DataFrame] = None, use_fireducks: bool = False):
-        """Initialize database connection
-        データベース接続を初期化
+    Database connection class that manages DataFrames and cursors
+    DataFrameとカーソルを管理するデータベース接続クラス
+    """
+    def __init__(self, base_dir: str = ".", dataframes: Optional[Dict[str, pd.DataFrame]] = None):
+        """
+        Initialize connection with base directory and optional dataframes
+        基準ディレクトリとオプションのDataFrameで接続を初期化
 
         Args:
-            csv_file (str, optional): Path to CSV file
-                                    CSVファイルへのパス
-            dataframe (pd.DataFrame, optional): Pandas DataFrame
-                                              PandasのDataFrame
-            use_fireducks (bool): Whether to use fireducks for high-speed operations
-                                高速操作のためにfireducksを使用するかどうか
-
-        Raises:
-            InterfaceError: When neither csv_file nor dataframe is provided
-                           CSVファイルもDataFrameも提供されていない場合
-            OperationalError: When file operation fails
-                            ファイル操作に失敗した場合
+            base_dir (str): Base directory for CSV files
+                           CSVファイルの基準ディレクトリ
+            dataframes (Dict[str, pd.DataFrame], optional): Dictionary of table names and their DataFrames
+                                                          テーブル名とDataFrameの辞書
         """
-        self.tables: Dict[str, Union[pd.DataFrame, 'fd.DataFrame']] = {}
-        self.schema: Dict[str, Dict[str, str]] = {}
-        self.use_fireducks = use_fireducks and HAS_FIREDUCKS
-        self.basedir = os.path.dirname(csv_file) if csv_file else os.getcwd()
+        self.base_dir = base_dir
+        self._tables: Dict[str, pd.DataFrame] = {}
+        self._schemas: Dict[str, Dict] = {}
+        
+        # Register initial dataframes if provided
+        # 初期DataFrameが提供された場合に登録
+        if dataframes:
+            for table_name, df in dataframes.items():
+                self._tables[table_name] = df.copy()
 
-        if csv_file:
-            try:
-                df = pd.read_csv(csv_file, dtype=str)
-                table_name = os.path.splitext(os.path.basename(csv_file))[0]
-                self.tables[table_name] = fd.from_pandas(df) if self.use_fireducks else df
-            except OSError as e:
-                raise OperationalError(f"Failed to open file: {str(e)}")
-            except pd.errors.EmptyDataError:
-                raise DataError(f"Empty CSV file: {csv_file}")
-            except pd.errors.ParserError:
-                raise DataError(f"Failed to parse CSV file: {csv_file}")
-        elif dataframe is not None:
-            if not isinstance(dataframe, pd.DataFrame):
-                raise InterfaceError("dataframe must be a pandas DataFrame")
-            self.tables['dataframe'] = fd.from_pandas(dataframe) if self.use_fireducks else dataframe
-        else:
-            raise InterfaceError("Either csv_file or dataframe must be provided")
+    @property
+    def tables(self) -> Dict[str, pd.DataFrame]:
+        """
+        Get registered tables
+        登録されているテーブルを取得
+
+        Returns:
+            Dict[str, pd.DataFrame]: Dictionary of table names and their DataFrames
+                                   テーブル名とDataFrameの辞書
+        """
+        return self._tables
 
     def create_table(self, name: str, schema: dict) -> None:
         """Create a new table
@@ -158,14 +136,14 @@ class Connection:
             raise ProgrammingError("Invalid table name")
         if not schema or not isinstance(schema, dict):
             raise DataError("Invalid schema definition")
-        if name in self.tables:
+        if name in self._tables:
             raise IntegrityError(f"Table {name} already exists")
 
         try:
             df = pd.DataFrame(columns=schema.keys())
             df = self._convert_dataframe_types(df, schema)
-            self.tables[name] = fd.from_pandas(df) if self.use_fireducks else df
-            self.schema[name] = schema
+            self._tables[name] = df
+            self._schemas[name] = schema
         except ValueError as e:
             raise DataError(f"Failed to convert data types: {str(e)}")
         except Exception as e:
@@ -193,19 +171,51 @@ class Connection:
         """
         if not name or not isinstance(name, str):
             raise ProgrammingError("Invalid table name")
-        if name in self.tables:
+        if name in self._tables:
             raise IntegrityError(f"Table {name} already exists")
         if not isinstance(dataframe, pd.DataFrame):
             raise ProgrammingError("dataframe must be a pandas DataFrame")
 
         try:
             dataframe = self._convert_dataframe_types(dataframe, schema)
-            self.tables[name] = dataframe
-            self.schema[name] = schema
+            self._tables[name] = dataframe
+            self._schemas[name] = schema
         except ValueError as e:
             raise DataError(f"Failed to convert data types: {str(e)}")
         except Exception as e:
             raise DatabaseError(f"Failed to register table: {str(e)}")
+
+    def register_schema(self, name: str, schema: dict) -> None:
+        """Register schema for a table
+        テーブルのスキーマを登録
+
+        Args:
+            name (str): Table name
+                       テーブル名
+            schema (dict): Column names and their types
+                          カラム名と型の定義
+
+        Raises:
+            ProgrammingError: When table name or schema is invalid
+                             テーブル名やスキーマが無効な場合
+            DataError: When DataFrame type conversion fails
+                      DataFrameの型変換に失敗した場合
+        """
+        if not name or not isinstance(name, str):
+            raise ProgrammingError("Invalid table name")
+        if not schema or not isinstance(schema, dict):
+            raise DataError("Invalid schema definition")
+        if name not in self._tables:
+            raise ProgrammingError(f"Table {name} does not exist")
+
+        try:
+            df = self._convert_dataframe_types(self._tables[name], schema)
+            self._tables[name] = df
+            self._schemas[name] = schema
+        except ValueError as e:
+            raise DataError(f"Failed to convert data types: {str(e)}")
+        except Exception as e:
+            raise DatabaseError(f"Failed to register schema: {str(e)}")
 
     def _convert_dataframe_types(self, df: pd.DataFrame, schema: dict) -> pd.DataFrame:
         """Convert DataFrame types based on schema
@@ -251,7 +261,7 @@ class Connection:
         """Get CSV file path for the table
         テーブルに対応する CSV ファイルのパスを取得
         """
-        return os.path.join(self.basedir, f"{table_name}.csv")
+        return os.path.join(self.base_dir, f"{table_name}.csv")
 
     def commit(self) -> None:
         """Save changes to CSV files
@@ -264,10 +274,8 @@ class Connection:
                           その他のデータベース操作エラー
         """
         try:
-            for table_name, df in self.tables.items():
+            for table_name, df in self._tables.items():
                 file_path = self._get_csv_path(table_name)
-                if self.use_fireducks:
-                    df = df.to_pandas()
                 df.to_csv(file_path, index=False)
         except OSError as e:
             raise OperationalError(f"Failed to save file: {str(e)}")
@@ -287,15 +295,15 @@ class Connection:
                           その他のデータベース操作エラー
         """
         try:
-            for table_name in list(self.tables.keys()):
+            for table_name in list(self._tables.keys()):
                 file_path = self._get_csv_path(table_name)
                 if not os.path.exists(file_path):
                     raise OperationalError(f"File does not exist: {file_path}")
                 
                 try:
                     df = pd.read_csv(file_path, dtype=str)
-                    df = self._convert_dataframe_types(df, self.schema.get(table_name, {}))
-                    self.tables[table_name] = fd.from_pandas(df) if self.use_fireducks else df
+                    df = self._convert_dataframe_types(df, self._schemas.get(table_name, {}))
+                    self._tables[table_name] = df
                 except pd.errors.EmptyDataError:
                     raise DataError(f"Empty CSV file: {file_path}")
                 except pd.errors.ParserError:
@@ -304,6 +312,7 @@ class Connection:
             raise
         except Exception as e:
             raise DatabaseError(f"Failed to rollback: {str(e)}")
+
     def cursor(self) -> Cursor:
         """Get cursor object
         カーソルオブジェクトを取得
@@ -325,5 +334,5 @@ class Connection:
         """Close the connection
         接続を閉じる
         """
-        self.tables.clear()
+        self._tables.clear()
 

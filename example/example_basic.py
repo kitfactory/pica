@@ -48,12 +48,24 @@ def main():
     users_df = pd.DataFrame(users_data)
     orders_df = pd.DataFrame(orders_data)
 
-    # Example 1: Basic SELECT with WHERE using DataFrame directly
-    # DataFrameを直接使用した基本的なSELECTとWHEREの例
-    print("\n=== Example 1: Basic SELECT with WHERE ===")
-    conn = pica.connect(dataframe=users_df)
+    # Initialize connection with dataframes
+    # DataFrameを指定して接続を初期化
+    initial_tables = {
+        "users": users_df,
+        "orders": orders_df
+    }
+    conn = pica.connect(dataframes=initial_tables)
     cursor = conn.cursor()
-    cursor.execute("SELECT name, age FROM dataframe WHERE age > 25")
+
+    # Register schemas
+    # スキーマを登録
+    conn.register_schema("users", users_schema)
+    conn.register_schema("orders", orders_schema)
+
+    # Example 1: Basic SELECT with WHERE
+    # 基本的なSELECTとWHEREの例
+    print("\n=== Example 1: Basic SELECT with WHERE ===")
+    cursor.execute("SELECT name, age FROM users WHERE age > 25")
     results = cursor.fetchall()
     print("Users over 25:")
     for row in results:
@@ -64,7 +76,7 @@ def main():
     print("\n=== Example 2: GROUP BY with aggregation ===")
     cursor.execute("""
         SELECT department, COUNT(*) as count, AVG(age) as avg_age 
-        FROM dataframe 
+        FROM users 
         GROUP BY department
     """)
     results = cursor.fetchall()
@@ -75,9 +87,6 @@ def main():
     # Example 3: JOIN operation using two DataFrames
     # 2つのDataFrameを使用したJOIN操作の例
     print("\n=== Example 3: JOIN operation ===")
-    # Register both DataFrames with their schemas
-    conn.register_table("users", users_df, users_schema)
-    conn.register_table("orders", orders_df, orders_schema)
     cursor.execute("""
         SELECT 
             users.name as customer_name,

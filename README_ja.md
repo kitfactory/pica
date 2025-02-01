@@ -1,83 +1,120 @@
-# 🎯 Pica - シンプルなCSV/Pandas DB-APIインターフェース
+# 🐼 Pica - Pandas DataFrameのためのシンプルなSQLインターフェース
 
-🌟 PicaはCSVファイルとPandas DataFrameのためのDB-API 2.0準拠のインターフェースを提供するPythonライブラリです。CSVデータの操作を従来のデータベースのように簡単に行うことができます！
+Picaは、Python DB-API 2.0仕様に準拠したPandas DataFrame用の軽量なPythonライブラリです。PandasのパワーをそのままにSQLの構文で直感的にDataFrameを操作することができます。
 
 ## ✨ 特徴
 
-- 🔌 DB-API 2.0準拠のインターフェース
-- 📊 Pandas DataFrameとのシームレスな統合
-- 📁 CSVファイルの直接操作
-- 🚀 シンプルで直感的なSQLライクなクエリ
-- 🛠 設定不要
+- 🔍 Pandas DataFrameのためのSQL風インターフェース
+- 📊 一般的なSQL操作をサポート
+- 🐍 Python DB-API 2.0準拠
+- 🚀 使いやすく、導入が簡単
+- 📝 永続化のためのCSVファイルサポート
 
-## 📥 インストール
+## 🛠️ インストール
 
-> pip install pica
+```bash
+pip install pica
+```
 
-## 🚀 クイックスタート
+## 🎯 クイックスタート
 
 ```python
 import pica
+import pandas as pd
 
-# CSVファイルに接続
-conn = pica.connect('data.csv')
+# 接続を作成
+conn = pica.connect()
+
+# DataFrameをテーブルとして登録
+df = pd.DataFrame({
+    'id': [1, 2, 3],
+    'name': ['Alice', 'Bob', 'Charlie'],
+    'age': [25, 30, 35]
+})
+
+conn.register_table('users', df, {
+    'id': 'INTEGER',
+    'name': 'TEXT',
+    'age': 'INTEGER'
+})
+
+# SQLクエリを実行
 cursor = conn.cursor()
-
-# SQLクエリの実行
-cursor.execute("SELECT * FROM data WHERE age > 25")
+cursor.execute("SELECT name, age FROM users WHERE age > 25")
 results = cursor.fetchall()
-
-# Pandas DataFrameとして操作
-df = cursor.to_dataframe()
+print(results)  # [('Bob', 30), ('Charlie', 35)]
 ```
 
-## 🎯 サポートされているSQL操作
+## 🔥 サポートされているSQL操作
 
-現在サポートされているSQL操作：
+### SELECT
+- 基本的なSELECTとカラム選択
+- WHERE句と比較演算子 (=, >, <, >=, <=, !=)
+- GROUP BYと集計関数 (COUNT, SUM, AVG, MAX, MIN)
+- ORDER BY (昇順/降順)
+- JOIN操作
+- エイリアス (AS)
 
-- SELECT: 基本的な列選択クエリ
-- WHERE: 比較演算子（=, >, <, >=, <=, !=）を使用した条件フィルタリング
-- ORDER BY: 結果のソート（昇順/降順）
-- LIMIT: 返される行数の制限
-- GROUP BY: 集計関数を使用したグループ化
-- HAVING: グループ化された結果のフィルタリング
-- JOIN: 複数のCSVファイル間の内部結合
+例：
+```sql
+SELECT name, AVG(age) as avg_age 
+FROM users 
+WHERE age > 25 
+GROUP BY name 
+ORDER BY avg_age DESC
+```
 
-## 📚 使用例
+### INSERT
+- 基本的なINSERT INTOとVALUES
 
-### 基本的なクエリ:
-# 条件付きクエリ
-cursor.execute("SELECT name, age FROM users WHERE age > 30 ORDER BY name")
+例：
+```sql
+INSERT INTO users (name, age) VALUES ('David', 28)
+```
 
-### Pandasとの使用:
-# CSVのインポートとクエリ
-df = pd.read_csv('data.csv')
-conn = pica.connect(dataframe=df)
-cursor = conn.cursor()
-cursor.execute("SELECT * FROM data GROUP BY category HAVING COUNT(*) > 5")
+### UPDATE
+- WHERE句付きのUPDATE
 
-### 複数ファイルの操作:
-# 結合操作
-cursor.execute("""
-    SELECT users.name, orders.product 
-    FROM users 
-    JOIN orders ON users.id = orders.user_id
-""")
+例：
+```sql
+UPDATE users SET age = 29 WHERE name = 'Alice'
+```
 
-## 🔧 必要要件
+### DELETE
+- WHERE句付きのDELETE
 
-- Python 3.10以上
-- pandas
-- pytest（開発用）
+例：
+```sql
+DELETE FROM users WHERE age < 25
+```
 
-## 📖 ドキュメント
+## 📊 サポートされているデータ型
 
-詳細なドキュメントは以下のドキュメントページをご覧ください: https://pica.readthedocs.io/
+- INTEGER（整数）
+- REAL（実数）
+- BOOLEAN（真偽値）
+- DATE（日付）
+- TEXT（テキスト）
 
-## 🤝 コントリビューション
+## 🔄 トランザクションサポート
 
-コントリビューションを歓迎します！お気軽にPull Requestを送ってください。
+```python
+conn = pica.connect()
+try:
+    # 操作を実行
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET age = 26 WHERE name = 'Alice'")
+    conn.commit()
+except:
+    conn.rollback()
+finally:
+    conn.close()
+```
 
 ## 📝 ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています - 詳細はLICENSEファイルをご覧ください。
+MITライセンス
+
+## 🤝 コントリビューション
+
+コントリビューションを歓迎します！お気軽にプルリクエストを送ってください。
