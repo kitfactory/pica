@@ -275,6 +275,8 @@ class Cursor:
         table_aliases = {}
         if table_alias:
             table_aliases.update(table_alias)
+        else:
+            table_aliases[table_name] = table_name
 
         # Handle JOIN if present
         join_info = self._find_join_clause(tokens)
@@ -283,9 +285,27 @@ class Cursor:
             join_alias = self._get_table_alias(tokens, "JOIN")
             if join_alias:
                 table_aliases.update(join_alias)
-                        
+            else:
+                table_aliases[join_table] = join_table
+            
             if join_table not in self.connection.tables:
-                raise ValueError(f"Join table {join_table} not found")
+                if hasattr(self.connection, "load_table_if_needed"):
+                    try:
+                        self.connection.load_table_if_needed(join_table)
+                    except Exception as e:
+                        raise ValueError(f"Failed to load join table {join_table}: {str(e)}")
+                elif hasattr(self.connection, "base_dir"):
+                    csv_file = os.path.join(self.connection.base_dir, f"{join_table}.csv")
+                    if os.path.exists(csv_file):
+                        try:
+                            df_temp = pd.read_csv(csv_file)
+                            self.connection.tables[join_table] = df_temp
+                        except Exception as e:
+                            raise DatabaseError(f"Lazy loading failed for join table {join_table}: {str(e)}")
+                    else:
+                        raise ValueError(f"Join table {join_table} CSV file {csv_file} is missing")
+                else:
+                    raise ValueError(f"Join table {join_table} not found and no lazy-loading mechanism provided")
             
             right_df = self.connection.tables[join_table].copy()
             left_col, right_col = self._parse_join_condition(join_condition)
@@ -305,7 +325,10 @@ class Cursor:
                         right_col = col
                         break
             
-            df = pd.merge(df, right_df, left_on=left_col, right_on=right_col)
+            print("DEBUG: left_col =", left_col, "right_col =", right_col)
+            df_merged = pd.merge(df, right_df, left_on=left_col, right_on=right_col)
+            print("DEBUG: After merge, df columns:", df_merged.columns.tolist())
+            df = df_merged
 
         # WHERE句の処理
         where_token = None
@@ -392,7 +415,8 @@ class Cursor:
                                 select_tokens.append((str(item.get_real_name()), str(item.get_alias())))
                             else:
                                 col_name = str(item).strip()
-                                select_tokens.append((col_name, col_name))
+                                alias = col_name.split('.')[-1] if '.' in col_name else col_name
+                                select_tokens.append((col_name, alias))
 
 
         # ワイルドカードの処理

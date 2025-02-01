@@ -5,6 +5,7 @@ import sqlparse
 
 from pica.connection import Connection
 from pica.cursor import Cursor
+from pica.exceptions import DatabaseError
 
 # Dummy parsed object to simulate parsed_info
 class DummyParsed:
@@ -191,4 +192,48 @@ def test_delete_lazy_loading_file_not_found(tmp_path):
 
     with pytest.raises(ValueError) as excinfo:
         cursor._delete(parsed)
-    assert "Failed to load table nonexistent" in str(excinfo.value) 
+    assert "Failed to load table nonexistent" in str(excinfo.value)
+
+
+def test_join_lazy_loading_success(tmp_path, temp_connection):
+    """Test JOIN operation lazy-loading: successfully load join table from CSV and perform join."""
+    import pandas as pd
+
+    # Create CSV files for main_table and join_table
+    main_csv = tmp_path / "main_table.csv"
+    join_csv = tmp_path / "join_table.csv"
+    main_csv.write_text("id,value\n1,A\n2,B")
+    join_csv.write_text("id,extra\n1,X\n2,Y")
+
+    # Set the base_dir for lazy-loading
+    temp_connection.base_dir = str(tmp_path)
+
+    # Execute a JOIN query
+    query = "SELECT main_table.id, main_table.value, join_table.extra FROM main_table JOIN join_table ON main_table.id = join_table.id"
+    cursor = Cursor(temp_connection)
+    cursor.execute(query)
+
+    # Expected merge using pandas
+    df_main = pd.read_csv(str(main_csv))
+    df_join = pd.read_csv(str(join_csv))
+    expected_df = pd.merge(df_main, df_join, on="id")
+
+    pd.testing.assert_frame_equal(cursor.result_set.reset_index(drop=True), expected_df.reset_index(drop=True))
+
+
+def test_join_lazy_loading_file_not_found(tmp_path, temp_connection):
+    """Test JOIN operation lazy-loading raises error when join table CSV is missing."""
+    # Create CSV file only for main_table, no join_table CSV
+    main_csv = tmp_path / "main_table.csv"
+    main_csv.write_text("id,value\n1,A\n2,B")
+
+    # Set the base_dir for lazy-loading
+    temp_connection.base_dir = str(tmp_path)
+
+    # Execute a JOIN query where join_table CSV does not exist
+    query = "SELECT main_table.id, main_table.value, join_table.extra FROM main_table JOIN join_table ON main_table.id = join_table.id"
+    cursor = Cursor(temp_connection)
+
+    with pytest.raises(DatabaseError) as excinfo:
+        cursor.execute(query)
+    assert "Join table join_table CSV file" in str(excinfo.value) 
