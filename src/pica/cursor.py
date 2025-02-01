@@ -514,11 +514,11 @@ class Cursor:
             parsed: Parsed SQL statement
                    パース済みのSQL文
         """
-        table_name = str(parsed.tokens[2])
-        values = str(parsed.tokens[-1]).replace("VALUES", "").strip(" ()").split(",")
-        df = self.connection.tables[table_name]
-        new_row = pd.Series(values, index=df.columns)
-        self.connection.tables[table_name] = df.append(new_row, ignore_index=True)
+        # Get the table name from the already parsed info in the query
+        table_name = parsed.parsed_info.get("table_name")
+        if table_name:
+            from pica.lazy_loader import load_table_if_needed
+            load_table_if_needed(self.connection, table_name)
 
     def _update(self, parsed) -> None:
         """Process UPDATE statement
@@ -536,8 +536,16 @@ class Cursor:
         """
         tokens = [t for t in parsed.tokens if not t.is_whitespace]
         
-        # Get table name
-        table_name = str(tokens[1])
+        # Get the table name from the already parsed info in the query
+        table_name = parsed.parsed_info.get("table_name")
+        if table_name:
+            from pica.lazy_loader import load_table_if_needed
+            load_table_if_needed(self.connection, table_name)
+        else:
+            # Fallback: extract table name from tokens if parsed_info is not available
+            table_name = str(tokens[1])
+
+        # After lazy-loading, explicitly check if the table exists
         if table_name not in self.connection.tables:
             raise ValueError(f"Table {table_name} not found")
         
@@ -589,7 +597,10 @@ class Cursor:
         if not table_name:
             raise ValueError("No table name found in DELETE statement")
         if table_name not in self.connection.tables:
-            raise ValueError(f"Table {table_name} not found")
+            try:
+                self.connection.load_table_if_needed(table_name)
+            except Exception as e:
+                raise ValueError(f"Failed to load table {table_name} for DELETE operation: {str(e)}")
             
         df = self.connection.tables[table_name]
         

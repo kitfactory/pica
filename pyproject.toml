@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pica-dbapi"
-version = "0.1.0"
+version = "0.1.1"
 description = "A lightweight and fun DBAPI built on pandas/csv 🎉. Supported SQL: SELECT, INSERT, UPDATE, DELETE, JOIN, GROUP BY."
 readme = "README.md"
 authors = [
