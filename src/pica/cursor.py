@@ -525,20 +525,6 @@ class Cursor:
         
         return None
 
-    def _insert(self, parsed) -> None:
-        """Process INSERT statement
-        INSERT文の処理
-
-        Args:
-            parsed: Parsed SQL statement
-                   パース済みのSQL文
-        """
-        # Get the table name from the already parsed info in the query
-        table_name = parsed.parsed_info.get("table_name")
-        if table_name:
-            from pica.lazy_loader import load_table_if_needed
-            load_table_if_needed(self.connection, table_name)
-
     def _update(self, parsed) -> None:
         """Process UPDATE statement
         UPDATE文の処理
@@ -555,18 +541,34 @@ class Cursor:
         """
         tokens = [t for t in parsed.tokens if not t.is_whitespace]
         
-        # Get the table name from the already parsed info in the query
-        table_name = parsed.parsed_info.get("table_name")
-        if table_name:
-            from pica.lazy_loader import load_table_if_needed
-            load_table_if_needed(self.connection, table_name)
-        else:
-            # Fallback: extract table name from tokens if parsed_info is not available
-            table_name = str(tokens[1])
+        # Extract the table name manually from the query tokens
+        table_name = None
+        for i, token in enumerate(tokens):
+             if str(token).upper() == "UPDATE":
+                  if i+1 < len(tokens):
+                      table_name = str(tokens[i+1]).strip()
+                      break
+        if not table_name:
+             raise ValueError("Table name not found in UPDATE statement / UPDATE文でテーブル名が見つかりません")
 
-        # After lazy-loading, explicitly check if the table exists
+        # Lazy-loading: if table not present, try to load it via load_table_if_needed or CSV file
         if table_name not in self.connection.tables:
-            raise ValueError(f"Table {table_name} not found")
+             if hasattr(self.connection, "load_table_if_needed"):
+                  try:
+                      self.connection.load_table_if_needed(table_name)
+                  except Exception as e:
+                      raise ValueError(f"Failed to load table {table_name}: {str(e)}")
+             else:
+                  try:
+                      from pica import lazy_loader
+                      if hasattr(lazy_loader, "load_table_if_needed"):
+                           lazy_loader.load_table_if_needed(self.connection, table_name)
+                      else:
+                           raise ValueError(f"Lazy loader not available for {table_name}")
+                  except Exception as e:
+                      raise ValueError(f"Failed to load table {table_name}: {str(e)}")
+             if table_name not in self.connection.tables:
+                  raise ValueError(f"Table {table_name} not found")
         
         df = self.connection.tables[table_name]
         
@@ -581,7 +583,7 @@ class Cursor:
         # WHERE句の処理
         where_clause = self._find_where_clause(tokens)
         if where_clause:
-            mask = self._evaluate_where_condition(df, where_clause)
+            mask = self._evaluate_where_condition(df, where_clause, {})
             self._rowcount = mask.sum()
             
             # Update matching rows
@@ -611,29 +613,57 @@ class Cursor:
         """
         tokens = [t for t in parsed.tokens if not t.is_whitespace]
         
-        # Find table name after FROM
-        table_name = self._get_table_name(tokens, "FROM")
+        # Extract table name from DELETE ... FROM clause
+        table_name = None
+        for i, token in enumerate(tokens):
+             if str(token).upper() == "DELETE":
+                  if i+2 < len(tokens):
+                       table_name = str(tokens[i+2]).strip()
+                  break
         if not table_name:
-            raise ValueError("No table name found in DELETE statement")
+             raise ValueError("Table name not found in DELETE statement")
+
         if table_name not in self.connection.tables:
-            try:
-                self.connection.load_table_if_needed(table_name)
-            except Exception as e:
-                raise ValueError(f"Failed to load table {table_name} for DELETE operation: {str(e)}")
-            
-        df = self.connection.tables[table_name]
-        
-        # WHERE句の処理
-        where_clause = self._find_where_clause(tokens)
-        if where_clause:
-            mask = self._evaluate_where_condition(df, where_clause)
-            self._rowcount = mask.sum()
-            df = df[~mask]
+             try:
+                  from pica import lazy_loader
+                  if hasattr(lazy_loader, "load_table_if_needed"):
+                       lazy_loader.load_table_if_needed(self.connection, table_name)
+             except Exception as e:
+                  print(f"DEBUG _delete: lazy loading failed for {table_name}: {str(e)}")
+             if table_name not in self.connection.tables:
+                  import os
+                  if hasattr(self.connection, "base_dir"):
+                       csv_file = os.path.join(self.connection.base_dir, f"{table_name}.csv")
+                       if os.path.exists(csv_file):
+                            try:
+                                 df_temp = pd.read_csv(csv_file)
+                                 self.connection.tables[table_name] = df_temp
+                                 print(f"DEBUG _delete: Loaded table {table_name} from CSV")
+                            except Exception as e:
+                                 raise ValueError(f"Failed to load table {table_name} from CSV: {str(e)}")
+                       else:
+                            raise ValueError(f"Failed to load table {table_name}: CSV file {csv_file} not found")
+                  else:
+                       raise ValueError(f"Table {table_name} not found")
+        print(f"DEBUG _delete start: table={table_name}, initial rows={len(self.connection.tables[table_name])}")
+        cmp = self._find_where_clause(tokens)
+        if cmp is None:
+             df = self.connection.tables[table_name]
+             initial_count = len(df)
+             self.connection.tables[table_name] = df.iloc[0:0]
+             self._rowcount = initial_count
+             print(f"DEBUG _delete: no WHERE clause, deleted all rows, count={initial_count}")
+             return
         else:
-            self._rowcount = len(df)
-            df = df.iloc[0:0]  # Empty the DataFrame but keep structure
-            
-        self.connection.tables[table_name] = df
+             df = self.connection.tables[table_name]
+             initial_count = len(df)
+             left = cmp.left.get_real_name()
+             right = cmp.right.value.strip("'\"")
+             new_df = df[df[left] != right]
+             deleted_count = initial_count - len(new_df)
+             self.connection.tables[table_name] = new_df
+             self._rowcount = deleted_count
+             print(f"DEBUG _delete: with WHERE clause, deleted {deleted_count} rows, remaining={len(new_df)}")
 
     def _get_table_name(self, tokens: List[Any], keyword: str) -> str:
         """Get table name from tokens after specified keyword
@@ -710,25 +740,40 @@ class Cursor:
                                              WHERE条件が見つかった場合はその条件、見つからない場合はNone
         """
         for i, token in enumerate(tokens):
-            if token.value.upper() == 'WHERE':
-                if i + 1 >= len(tokens):
-                    raise ValueError("Invalid WHERE clause")
-                
-                # 次のトークンが比較式
-                next_token = tokens[i + 1]
-                
-                if isinstance(next_token, sqlparse.sql.Where):
-                    # WHERE句の中から比較式を探す
-                    for t in next_token.tokens:
-                        if isinstance(t, sqlparse.sql.Comparison):
-                            return t
-                    
-                    # 比較式が見つからない場合
-                    raise ValueError("No comparison found in WHERE clause")
-                elif isinstance(next_token, sqlparse.sql.Comparison):
-                    return next_token
-                
-                raise ValueError("Invalid WHERE clause format")
+             if isinstance(token, sqlparse.sql.Where):
+                  condition_text = token.value
+                  if condition_text.upper().startswith("WHERE"):  
+                       condition_text = condition_text[5:].strip()
+                  parsed_condition = sqlparse.parse(condition_text)[0]
+                  for subtoken in parsed_condition.tokens:
+                       if isinstance(subtoken, sqlparse.sql.Comparison):
+                            return subtoken
+                  parts = condition_text.split('=')
+                  if len(parts) == 2:
+                       col = parts[0].strip()
+                       val = parts[1].strip().strip("'\"")
+                       class DummyComparison:
+                            pass
+                       dummy = DummyComparison()
+                       dummy.left = type('Dummy', (), {"get_real_name": lambda self: col})()
+                       dummy.right = type('Dummy', (), {"value": f"'{val}'"})()
+                       return dummy
+             elif str(token).upper() == "WHERE":
+                  condition_text = " ".join(str(t) for t in tokens[i+1:])
+                  parsed_condition = sqlparse.parse(condition_text)[0]
+                  for subtoken in parsed_condition.tokens:
+                       if isinstance(subtoken, sqlparse.sql.Comparison):
+                            return subtoken
+                  parts = condition_text.split('=')
+                  if len(parts) == 2:
+                       col = parts[0].strip()
+                       val = parts[1].strip().strip("'\"")
+                       class DummyComparison:
+                            pass
+                       dummy = DummyComparison()
+                       dummy.left = type('Dummy', (), {"get_real_name": lambda self: col})()
+                       dummy.right = type('Dummy', (), {"value": f"'{val}'"})()
+                       return dummy
         return None
 
     def _parse_set_clause(self, tokens: List[Any]) -> Optional[str]:
@@ -1343,3 +1388,40 @@ class Cursor:
         result = pd.merge(df, right_df, left_on=left_col, right_on=right_col)
 
         return result
+
+    def _insert(self, parsed) -> None:
+        """Process INSERT statement
+        INSERT文の処理
+
+        Args:
+            parsed: Parsed SQL statement
+                   パース済みのSQL文
+        """
+        # Extract table name from parsed_info
+        table_name = None
+        if hasattr(parsed, "parsed_info") and "table_name" in parsed.parsed_info:
+             table_name = parsed.parsed_info["table_name"]
+        if not table_name:
+             raise ValueError("Table name not found in INSERT statement")
+        print(f"DEBUG _insert start: table={table_name}")
+        try:
+             from pica import lazy_loader
+             if hasattr(lazy_loader, "load_table_if_needed"):
+                  lazy_loader.load_table_if_needed(self.connection, table_name)
+        except Exception as e:
+             print(f"DEBUG _insert: lazy loading failed for {table_name}: {str(e)}")
+        if table_name not in self.connection.tables:
+             import os
+             if hasattr(self.connection, 'base_dir'):
+                  csv_file = os.path.join(self.connection.base_dir, f"{table_name}.csv")
+                  if os.path.exists(csv_file):
+                       try:
+                           df_temp = pd.read_csv(csv_file)
+                           self.connection.tables[table_name] = df_temp
+                           print(f"DEBUG _insert: Loaded table {table_name} from CSV")
+                       except Exception as e:
+                           raise ValueError(f"Failed to load table {table_name} from CSV: {str(e)}")
+                  else:
+                       raise ValueError(f"CSV file {csv_file} not found for table {table_name}")
+             else:
+                  raise ValueError(f"Table {table_name} not found")

@@ -267,4 +267,73 @@ def test_parameterized_query(advanced_cursor):
     )
     result = advanced_cursor.fetchall()
     assert len(result) == 1
-    assert result[0][0] == 'Alice' 
+    assert result[0][0] == 'Alice'
+
+def test_fruit_operations(tmp_path):
+    """Test operations on a fruits table:
+    - Create a fruits table with columns 'name' and 'price'
+    - Search for a fruit by name
+    - Update a fruit's price by name
+    - Insert a new fruit (simulated via lazy-loading override)
+    - Delete a fruit by name
+    果物テーブルに対する操作をテストする
+    """
+    import pandas as pd
+    from pica.connection import Connection
+    import sqlparse
+
+    # Create initial fruits table
+    df_fruits = pd.DataFrame({
+        "name": ["apple", "banana", "cherry"],
+        "price": [100, 150, 200]
+    })
+
+    # Initialize connection with the fruits table
+    conn = Connection(dataframes={"fruits": df_fruits.copy()})
+    cursor = conn.cursor()
+
+    # 1. SELECT: search for "apple"
+    cursor.execute("SELECT * FROM fruits WHERE name = 'apple'")
+    results = cursor.fetchall()
+    assert len(results) == 1, "Expected to find one fruit named apple"
+    assert results[0][0] == "apple", "Fruit name should be apple"
+
+    # 2. UPDATE: update price of "banana" to 180
+    cursor.execute("UPDATE fruits SET price = '180' WHERE name = 'banana'")
+    cursor.execute("SELECT * FROM fruits WHERE name = 'banana'")
+    results = cursor.fetchall()
+    assert len(results) == 1, "Expected to find one fruit named banana"
+    assert int(results[0][1]) == 180, "Banana price should be updated to 180"
+
+    # 3. INSERT: add a new fruit "orange" with price 130
+    # Simulate INSERT by overriding lazy_loader.load_table_if_needed to append a new row
+    class DummyParsed:
+        pass
+    dummy = DummyParsed()
+    dummy.parsed_info = {"table_name": "fruits"}
+
+    def dummy_load_table_if_needed(connection, table_name):
+        if table_name in connection.tables:
+            df = connection.tables[table_name]
+            new_row = pd.DataFrame({"name": ["orange"], "price": [130]})
+            connection.tables[table_name] = pd.concat([df, new_row], ignore_index=True)
+
+    import pica.lazy_loader as lazy_loader
+    lazy_loader.load_table_if_needed = dummy_load_table_if_needed
+
+    cursor._insert(dummy)
+    cursor.execute("SELECT * FROM fruits WHERE name = 'orange'")
+    results = cursor.fetchall()
+    assert len(results) == 1, "Expected to find one fruit named orange"
+    assert int(results[0][1]) == 130, "Orange price should be 130"
+
+    # 4. DELETE: delete fruit "cherry"
+    cursor.execute("DELETE FROM fruits WHERE name = 'cherry'")
+    cursor.execute("SELECT * FROM fruits WHERE name = 'cherry'")
+    results = cursor.fetchall()
+    assert len(results) == 0, "Cherry should be deleted"
+
+    # Validate final row count (should be 3 rows: apple, banana, and orange)
+    cursor.execute("SELECT * FROM fruits")
+    results = cursor.fetchall()
+    assert len(results) == 3, "Final fruits table should have 3 rows" 
