@@ -2,8 +2,12 @@ import os
 import sys
 import pandas as pd
 
+# Remove the following two lines:
+# 以下の2行を削除してください。
 # Add the parent directory to the system path to import pica
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# picaをインポートするためにシステムパスに親ディレクトリを追加する必要はありません。
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pica
 
 def main():
@@ -116,10 +120,10 @@ def main():
         print(row)
 
     # --- Lazy-loading Example ---
-    # This example demonstrates the lazy-loading functionality where CSV files are loaded automatically
-    # if the connection is initialized without initial DataFrames.
+    # Lazy-loading の例 ---
+    # This example demonstrates the lazy-loading functionality where CSV files are loaded automatically if the connection is initialized without initial DataFrames.
+    # この例は、初期 DataFrame なしで接続された場合に、CSVファイルが自動的に読み込まれる lazy-loading 機能を示します.
     print("\n=== Example 5: Lazy-loading ===")
-    # Set base_dir to the directory containing the CSV files (assuming they are placed in the same directory as this example file)
     base_dir = os.path.dirname(__file__)
     print("base_dir:", base_dir)
 
@@ -127,9 +131,8 @@ def main():
         os.path.join(base_dir, 'users.csv'),
         os.path.join(base_dir, 'orders.csv')
     ]
-    print('file1:',os.path.exists(csv_files[0]))
-    print('file2:',os.path.exists(csv_files[1]))
-    # Create connection without providing initial dataframes to trigger lazy-loading
+    print('file1:', os.path.exists(csv_files[0]))
+    print('file2:', os.path.exists(csv_files[1]))
     conn_lazy = pica.connect(base_dir=base_dir)
     try:
         cursor = conn_lazy.cursor()
@@ -139,6 +142,26 @@ def main():
         print(results)
     except Exception as e:
         print("Error during lazy-loading:", e)
+
+    # --- CREATE TABLE and DROP TABLE Example ---
+    # CREATE TABLE と DROP TABLE の例
+    print("\n=== Example 6: CREATE TABLE and DROP TABLE ===")
+    try:
+        # Create a new table 'sample' with two columns
+        # 2つのカラムを持つ 'sample' テーブルを作成する
+        cursor.execute("CREATE TABLE sample (col1 INT, col2 TEXT)")
+        print("Created table 'sample'", "\n", "'sample' テーブルを作成しました")
+
+        # Optionally, you might want to perform some operation on the 'sample' table here
+        # 必要に応じて、'sample' テーブルに対して操作を実行できます
+        
+        # Now drop the table
+        # その後、テーブルを削除する
+        cursor.execute("DROP TABLE sample")
+        print("Dropped table 'sample'", "\n", "'sample' テーブルを削除しました")
+    except Exception as e:
+        print("Error in CREATE/DROP TABLE example:", e)
+        print("CREATE/DROP TABLE の例でのエラー:", e)
 
 if __name__ == "__main__":
     main() 
