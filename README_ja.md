@@ -1,224 +1,65 @@
-# 🐼 Pica - Pandas DataFrameのためのシンプルなSQLインターフェース
+# Pica DBAPI 🎉
+ようこそ、Pica DBAPI へ！
+Pica は Pandas Integrated CSV API の略称です。
 
-Picaは、Python DB-API 2.0仕様に準拠したPandas DataFrame用の軽量なPythonライブラリです。PandasのパワーをそのままにSQLの構文で直感的にDataFrameを操作することができます。
+## 特徴 🌟
+- Pandas と CSV をベースにした軽量なDBAPI 📊
+- シンプルで直感的なAPI 🤩
+- SELECT, INSERT, UPDATE, DELETE, JOIN, GROUP BY などの一般的なSQL操作に対応 🛠️
+- CSVファイルの自動 lazy-loading 🚀
+- CREATE TABLE と DROP TABLE 操作 🗃️
+- pytest を用いた包括的なテストカバレッジ ✅
 
-## ✨ 特徴
-
-- 🔍 Pandas DataFrameのためのSQL風インターフェース
-- 📊 一般的なSQL操作をサポート
-- 🐍 Python DB-API 2.0準拠
-- 🚀 使いやすく、導入が簡単
-- 📝 永続化のためのCSVファイルサポート
-
-## 🛠️ インストール
-
+## インストール 🔧
 ```bash
 pip install pica-dbapi
 ```
 
-## 🎯 クイックスタート
+## サポートされるSQL操作 📝
+Pica でサポートされる SQL 操作は次の通りです:
 
-```python
-import os
-import sys
-import pandas as pd
+- **SELECT**: CSVファイルからデータを取得する。🔍
+- **INSERT**: CSVファイルに新しいレコードを挿入する。➕
+- **UPDATE**: CSVファイル内の既存レコードを更新する。🔄
+- **DELETE**: CSVファイルからレコードを削除する。❌
+- **JOIN**: 複数のCSVファイルの行を結合する。🔗
+- **GROUP BY**: GROUP BY句を使用してレコードを集約する。📊
+- **CREATE TABLE**: 指定されたカラムを持つ新しいCSVファイルを作成する。🆕
+- **DROP TABLE**: CSVファイルを削除し、対応するテーブルオブジェクトを除去する。🗑️
 
-import pica
+## クイックスタート 🚀
+以下は example_basic.py に基づいたクイックスタートガイドです:
 
-def main():
-    """CSVファイルとDataFrameを使用したPicaの基本的な使用例"""
-    # サンプルデータの作成
-    users_data = {
-        'id': [1, 2, 3, 4, 5],
-        'name': ['Alice', 'Bob', 'Charlie', 'David', 'Eve'],
-        'age': [25, 30, 35, 28, 22],
-        'department': ['Sales', 'IT', 'Sales', 'Marketing', 'IT']
-    }
+```bash
+# リポジトリをクローンする 📥
+git clone https://github.com/kitfactory/pica.git
+cd pica
 
-    orders_data = {
-        'order_id': [1, 2, 3, 4, 5],
-        'user_id': [1, 2, 1, 3, 5],
-        'product': ['Laptop', 'Mouse', 'Keyboard', 'Monitor', 'Printer'],
-        'amount': [1000, 20, 50, 200, 150]
-    }
+# 仮想環境を作成し、依存関係をインストールする 🛠️
+python -m venv .venv
+# Windowsの場合:
+.venv\Scripts\activate
+# Unix/Linuxの場合:
+# source .venv/bin/activate
 
-    # スキーマの定義
-    users_schema = {
-        'id': 'INTEGER',
-        'name': 'TEXT',
-        'age': 'INTEGER',
-        'department': 'TEXT'
-    }
+# Pica を編集可能モードでインストールする 🔧
+pip install -e .
 
-    orders_schema = {
-        'order_id': 'INTEGER',
-        'user_id': 'INTEGER',
-        'product': 'TEXT',
-        'amount': 'INTEGER'
-    }
-
-    # DataFrameを作成
-    users_df = pd.DataFrame(users_data)
-    orders_df = pd.DataFrame(orders_data)
-
-    # DataFrameを指定して接続を初期化
-    initial_tables = {
-        "users": users_df,
-        "orders": orders_df
-    }
-    conn = pica.connect(dataframes=initial_tables)
-    cursor = conn.cursor()
-
-    # スキーマを登録
-    conn.register_schema("users", users_schema)
-    conn.register_schema("orders", orders_schema)
-
-    # 例1: WHEREを使用した基本的なSELECT
-    print("\n=== 例1: WHEREを使用した基本的なSELECT ===")
-    cursor.execute("SELECT name, age FROM users WHERE age > 25")
-    results = cursor.fetchall()
-    print("25歳を超えるユーザ:")
-    for row in results:
-        print(row)
-
-    # 例2: 集計とGROUP BYの例
-    print("\n=== 例2: 集計とGROUP BYの例 ===")
-    cursor.execute(""" 
-        SELECT department, COUNT(*) as count, AVG(age) as avg_age 
-        FROM users 
-        GROUP BY department
-    """)
-    results = cursor.fetchall()
-    print("部署別統計:")
-    for row in results:
-        print(row)
-
-    # 例3: JOIN操作の例（2つのDataFrameを使用）
-    print("\n=== 例3: JOIN操作の例 ===")
-    cursor.execute(""" 
-        SELECT 
-            users.name as customer_name,
-            orders.product as product_name,
-            orders.amount as order_amount
-        FROM users
-        JOIN orders ON users.id = orders.user_id
-        ORDER BY amount DESC
-    """)
-    results = cursor.fetchall()
-    print("ユーザの注文:")
-    for row in results:
-        print(row)
-
-    # 例4: Pandas DataFrameを直接使用する例
-    print("\n=== 例4: Pandas DataFrameを直接使用する例 ===")
-    cursor.execute(""" 
-        SELECT name, age 
-        FROM users 
-        WHERE department = 'IT' 
-        ORDER BY age DESC
-    """)
-    results = cursor.fetchall()
-    print("IT部署のメンバー:")
-    for row in results:
-        print(row)
-
-    # --- Lazy-loadingの例 ---
-    print("\n=== 例5: Lazy-loadingの例 ===")
-    # CSVファイルが置かれているディレクトリを指定（この例ではこのファイルと同じディレクトリと仮定）
-    base_dir = os.path.dirname(__file__)
-    print("base_dir:", base_dir)
-
-    csv_files = [
-        os.path.join(base_dir, 'users.csv'),
-        os.path.join(base_dir, 'orders.csv')
-    ]
-    print('file1:', os.path.exists(csv_files[0]))
-    print('file2:', os.path.exists(csv_files[1]))
-    # 初期データフレームなしで接続を作成してlazy-loadingをトリガー
-    conn_lazy = pica.connect(base_dir=base_dir)
-    try:
-        cursor = conn_lazy.cursor()
-        cursor.execute("SELECT * FROM users")
-        results = cursor.fetchall()
-        print("Lazy-loadedされたusersデータ:")
-        print(results)
-    except Exception as e:
-        print("Lazy-loading中のエラー:", e)
-
-if __name__ == "__main__":
-    main()
+# 例を実行する ▶️
+python example/example_basic.py
 ```
 
-## 🔥 サポートされているSQL操作
+この例では、以下の機能がデモされています:
+- WHERE句を使用した基本的なSELECT 🔍
+- GROUP BY を伴う集計 📊
+- CSVファイルをベースとしたテーブル間のJOIN操作 🔗
+- Pandas DataFrame の直接利用 🐼
+- 初期DataFrameが提供されない場合のCSVファイル自動 lazy-loading 🚀
+- CREATE TABLE と DROP TABLE の機能 🗃️ 🗑️
 
-### SELECT
-- 基本的なSELECTとカラム選択
-- WHERE句と比較演算子 (=, >, <, >=, <=, !=)
-- GROUP BYと集計関数 (COUNT, SUM, AVG, MAX, MIN)
-- ORDER BY (昇順/降順)
-- JOIN操作
-- エイリアス (AS)
+## 貢献 🤝
+ご意見・ご提案、大歓迎です！
+Issue の投稿や Pull Request の作成をお願いします。💬✨
 
-例：
-```sql
-SELECT name, AVG(age) as avg_age 
-FROM users 
-WHERE age > 25 
-GROUP BY name 
-ORDER BY avg_age DESC
-```
-
-### INSERT
-- 基本的なINSERT INTOとVALUES
-
-例：
-```sql
-INSERT INTO users (name, age) VALUES ('David', 28)
-```
-
-### UPDATE
-- WHERE句付きのUPDATE
-
-例：
-```sql
-UPDATE users SET age = 29 WHERE name = 'Alice'
-```
-
-### DELETE
-- WHERE句付きのDELETE
-
-例：
-```sql
-DELETE FROM users WHERE age < 25
-```
-
-## 📊 サポートされているデータ型
-
-- INTEGER（整数）
-- REAL（実数）
-- BOOLEAN（真偽値）
-- DATE（日付）
-- TEXT（テキスト）
-
-## 🔄 トランザクションサポート
-
-```python
-conn = pica.connect()
-try:
-    # 操作を実行
-    cursor = conn.cursor()
-    cursor.execute("UPDATE users SET age = 26 WHERE name = 'Alice'")
-    conn.commit()
-except:
-    conn.rollback()
-finally:
-    conn.close()
-```
-
-## 📝 ライセンス
-
-MITライセンス
-
-## 🤝 コントリビューション
-
-コントリビューションを歓迎します！お気軽にプルリクエストを送ってください。
+## ライセンス 📄
+このプロジェクトは MIT License の元でライセンスされています。
