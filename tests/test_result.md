@@ -1,91 +1,64 @@
-# テスト実行結果
+# Test Results 🧪
 
-## 実行日時
-2024-03-21
+Last test run: 2024-03-21
 
-## テスト概要
-- 実行環境: Python 3.10.14
-- テストフレームワーク: pytest 8.3.4
-- プラットフォーム: win32
+## Summary 📊
+- Total tests: 31
+- Passed: 31 ✅
+- Failed: 0 ❌
+- Warnings: 2 ⚠️
+- Execution time: 1.34s ⚡
 
-## テスト結果サマリー
-- 総テスト数: 10
-- 成功: 10
-- 失敗: 0
-- 実行時間: 1.27秒
+## Test Details 📝
 
-## 詳細結果
+### Connection Tests
+- ✅ test_connection_creation
+- ✅ test_table_registration
 
-### tests/test_connection.py
-1. ✅ test_connection_creation
-   - データベース接続の作成をテスト
-   - 接続オブジェクトの初期化が正しく行われることを確認
-   - 基本的なプロパティとメソッドの存在を検証
+### Create Table Tests
+- ✅ test_create_table_success
+- ✅ test_create_table_if_not_exists_success
+- ✅ test_create_table_already_exists_error
 
-2. ✅ test_table_registration
-   - テーブルの登録機能をテスト
-   - DataFrameからのテーブル作成が正しく行われることを確認
-   - テーブル名の重複チェックと例外処理を検証
+### Cursor Tests
+- ✅ test_basic_select
+- ✅ test_data_types
+- ✅ test_type_based_comparisons
+- ✅ test_aggregate_functions
+- ✅ test_join_with_conditions
+- ✅ test_invalid_sql
+- ✅ test_fetch_methods
+- ✅ test_parameterized_query
+- ✅ test_fruit_operations
 
-### tests/test_cursor.py
-1. ✅ test_basic_select
-   - 基本的なSELECT文の実行をテスト
-   - カラムの選択と条件指定が正しく動作することを確認
-   - 結果セットの形式と内容を検証
+### Drop Table Tests
+- ✅ test_drop_table_success
+- ✅ test_drop_table_error
 
-2. ✅ test_data_types
-   - 異なるデータ型の処理をテスト
-   - 数値、文字列、日付、真偽値の正しい処理を確認
-   - 型変換とフォーマットの整合性を検証
+### Example Basic Tests
+- ✅ test_basic_select_where
+- ✅ test_group_by
+- ✅ test_join_operation
+- ✅ test_dataframe_usage
+- ✅ test_lazy_loading_success
+- ✅ test_lazy_loading_file_not_found
+- ✅ test_lazy_loading_invalid_csv
 
-3. ✅ test_type_based_comparisons
-   - データ型に基づく比較操作をテスト
-   - WHERE句での型に応じた比較が正しく機能することを確認
-   - 異なる型間の比較処理の妥当性を検証
+### Lazy Loading Tests
+- ✅ test_insert_lazy_loading_success
+- ✅ test_insert_lazy_loading_file_not_found
+- ✅ test_update_lazy_loading_success
+- ✅ test_update_lazy_loading_missing_table
+- ✅ test_delete_lazy_loading_success
+- ✅ test_delete_lazy_loading_file_not_found
+- ✅ test_join_lazy_loading_success
+- ✅ test_join_lazy_loading_file_not_found
 
-4. ✅ test_aggregate_functions
-   - 集計関数（COUNT, SUM, AVG, MAX, MIN）の動作をテスト
-   - GROUP BY句との組み合わせを確認
-   - 集計結果の正確性を検証
+## Warnings ⚠️
+1. Regular Expression Warning:
+   - Location: `cursor.py:41`
+   - Message: DeprecationWarning: Flags not at the start of the expression '^(?i)IF NOT EXISTS' but at position 1
 
-5. ✅ test_join_with_conditions
-   - JOINとWHERE条件の組み合わせをテスト
-   - テーブル結合の正確性を確認
-   - 結合条件とフィルタ条件の適切な処理を検証
-
-6. ✅ test_invalid_sql
-   - 無効なSQL文の処理をテスト
-   - 適切なエラーメッセージが返されることを確認
-   - 例外処理の動作を検証
-
-7. ✅ test_fetch_methods
-   - データ取得メソッド（fetchone, fetchmany, fetchall）をテスト
-   - カーソル位置の管理が正しく行われることを確認
-   - 結果セットの取得方法の妥当性を検証
-
-8. ✅ test_parameterized_query
-   - パラメータ化されたクエリの実行をテスト
-   - プレースホルダの置換が正しく行われることを確認
-   - パラメータのエスケープ処理を検証
-
-## 最近の修正内容
-1. ORDER BY句の処理を改善
-   - テーブルエイリアスの処理を修正
-   - カラム名の解決ロジックを改善
-   - デバッグ出力を強化
-
-2. エラーハンドリングの改善
-   - より詳細なエラーメッセージを提供
-   - デバッグ情報の出力を強化
-
-## 注意点
-- すべてのテストが正常に通過
-- パフォーマンスも良好（1.27秒での完了）
-- デバッグログが適切に実装され、問題の特定が容易に
-
-Test Result Summary
-===================
-
-- Total tests collected: 7
-- Total tests passed: 7
-- Execution time: 0.50s 
+2. Pandas Type Warning:
+   - Location: `src/pica/cursor.py:591`
+   - Message: FutureWarning: Setting an item of incompatible dtype is deprecated 
