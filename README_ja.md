@@ -6,9 +6,8 @@ Pica は Pandas Integrated CSV API の略称です。
 - Pandas と CSV をベースにした軽量なDBAPI 📊
 - シンプルで直感的なAPI 🤩
 - SELECT, INSERT, UPDATE, DELETE, JOIN, GROUP BY などの一般的なSQL操作に対応 🛠️
-- CSVファイルの自動 lazy-loading 🚀
 - CREATE TABLE と DROP TABLE 操作 🗃️
-- pytest を用いた包括的なテストカバレッジ ✅
+- CSVファイルの自動 lazy-loading 🚀
 
 ## インストール 🔧
 ```bash
@@ -28,34 +27,54 @@ Pica でサポートされる SQL 操作は次の通りです:
 - **DROP TABLE**: CSVファイルを削除し、対応するテーブルオブジェクトを除去する。🗑️
 
 ## クイックスタート 🚀
-以下は example_basic.py に基づいたクイックスタートガイドです:
+以下は基本的なCRUD操作を示すシンプルな例です：
 
-```bash
-# リポジトリをクローンする 📥
-git clone https://github.com/kitfactory/pica.git
-cd pica
+```python
+import pica
 
-# 仮想環境を作成し、依存関係をインストールする 🛠️
-python -m venv .venv
-# Windowsの場合:
-.venv\Scripts\activate
-# Unix/Linuxの場合:
-# source .venv/bin/activate
+# 接続を作成
+conn = pica.connect()
+cursor = conn.cursor()
 
-# Pica を編集可能モードでインストールする 🔧
-pip install -e .
+try:
+    # 新しいテーブルを作成
+    cursor.execute("""
+        CREATE TABLE fruits (
+            name TEXT,
+            price INTEGER
+        )
+    """)
 
-# 例を実行する ▶️
-python example/example_basic.py
+    # データを挿入
+    cursor.execute("INSERT INTO fruits (name, price) VALUES ('Apple', 100)")
+    cursor.execute("INSERT INTO fruits (name, price) VALUES ('Banana', 80)")
+    cursor.execute("INSERT INTO fruits (name, price) VALUES ('Orange', 120)")
+
+    # データを選択して表示
+    cursor.execute("SELECT * FROM fruits")
+    results = cursor.fetchall()
+    for row in results:
+        print(row)
+
+    # データを更新
+    cursor.execute("UPDATE fruits SET price = 90 WHERE name = 'Banana'")
+
+    # データを削除
+    cursor.execute("DELETE FROM fruits WHERE name = 'Orange'")
+
+    # 変更内容をCSVファイルに保存
+    conn.commit()
+
+    # テーブルを削除（CSVファイルも削除されます）
+    cursor.execute("DROP TABLE fruits")
+
+except Exception as e:
+    print(f"エラーが発生しました: {e}")
+finally:
+    conn.close()
 ```
 
-この例では、以下の機能がデモされています:
-- WHERE句を使用した基本的なSELECT 🔍
-- GROUP BY を伴う集計 📊
-- CSVファイルをベースとしたテーブル間のJOIN操作 🔗
-- Pandas DataFrame の直接利用 🐼
-- 初期DataFrameが提供されない場合のCSVファイル自動 lazy-loading 🚀
-- CREATE TABLE と DROP TABLE の機能 🗃️ 🗑️
+より詳細な例については、リポジトリの `example` ディレクトリをご確認ください。
 
 ## 貢献 🤝
 ご意見・ご提案、大歓迎です！

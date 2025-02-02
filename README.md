@@ -28,34 +28,54 @@ Pica supports the following SQL operations:
 - **DROP TABLE**: Delete the CSV file and remove the corresponding table object. 🗑️
 
 ## Quick Start 🚀
-Below is a quick start guide demonstrating key features (as shown in example_basic.py):
+Here's a simple example demonstrating basic CRUD operations with Pica:
 
-```bash
-# Clone the repository 📥
-git clone https://github.com/kitfactory/pica.git
-cd pica
+```python
+import pica
 
-# Create a virtual environment and install dependencies 🛠️
-python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On Unix/Linux:
-# source .venv/bin/activate
+# Create a connection
+conn = pica.connect()
+cursor = conn.cursor()
 
-# Install Pica in editable mode 🔧
-pip install -e .
+try:
+    # Create a new table
+    cursor.execute("""
+        CREATE TABLE fruits (
+            name TEXT,
+            price INTEGER
+        )
+    """)
 
-# Run the example ▶️
-python example/example_basic.py
+    # Insert data
+    cursor.execute("INSERT INTO fruits (name, price) VALUES ('Apple', 100)")
+    cursor.execute("INSERT INTO fruits (name, price) VALUES ('Banana', 80)")
+    cursor.execute("INSERT INTO fruits (name, price) VALUES ('Orange', 120)")
+
+    # Select and show data
+    cursor.execute("SELECT * FROM fruits")
+    results = cursor.fetchall()
+    for row in results:
+        print(row)
+
+    # Update data
+    cursor.execute("UPDATE fruits SET price = 90 WHERE name = 'Banana'")
+
+    # Delete data
+    cursor.execute("DELETE FROM fruits WHERE name = 'Orange'")
+
+    # Save changes to CSV file
+    conn.commit()
+
+    # Drop the table
+    cursor.execute("DROP TABLE fruits")
+
+except Exception as e:
+    print(f"An error occurred: {e}")
+finally:
+    conn.close()
 ```
 
-This example demonstrates various features including:
-- Basic SELECT with WHERE clause 🔍
-- GROUP BY with aggregation 📊
-- JOIN operations between CSV-backed tables 🔗
-- Direct usage with Pandas DataFrame 🐼
-- Automatic lazy-loading of CSV files when initial DataFrames are not provided 🚀
-- CREATE TABLE and DROP TABLE functionalities 🗃️ 🗑️
+For more examples, please check the `example` directory in our repository.
 
 ## Contributing 🤝
 Contributions and suggestions are welcome! Please open an issue or submit a pull request. 💬✨
