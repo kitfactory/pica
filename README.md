@@ -6,9 +6,8 @@ Pica stands for Pandas Integrated CSV API.
 - Lightweight DBAPI built on Pandas and CSV 📊  
 - Simple and intuitive API 🤩  
 - Supports common SQL operations: SELECT, INSERT, UPDATE, DELETE, JOIN, GROUP BY 🛠️  
-- Automatic lazy-loading of CSV files 🚀  
 - CREATE TABLE and DROP TABLE operations 🗃️  
-- Comprehensive test coverage with pytest ✅
+- Automatic lazy-loading of CSV files 🚀  
 
 ## Installation 🔧
 ```bash
@@ -66,7 +65,7 @@ try:
     # Save changes to CSV file
     conn.commit()
 
-    # Drop the table
+    # Drop the table (this will delete the CSV file)
     cursor.execute("DROP TABLE fruits")
 
 except Exception as e:
