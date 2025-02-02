@@ -8,7 +8,7 @@ version = "0.1.2"
 description = "A lightweight and fun DBAPI built on pandas/csv 🎉. Supported SQL: SELECT, INSERT, UPDATE, DELETE, JOIN, GROUP BY."
 readme = "README.md"
 authors = [
-    { name = "Naruhide KITADANaruhide", email = "kitfactory@gmail.com" }
+    { name = "Naruhide KITADA", email = "kitfactory@gmail.com" }
 ]
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
